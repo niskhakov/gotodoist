@@ -28,13 +28,15 @@ func newClient(t *testing.T, statusCode int, response []byte) *Client {
 				}, nil
 			}),
 		},
-		clientID: "clientID",
+		clientID:     "clientID",
+		clientSecret: "clientSecret",
 	}
 }
 
 func TestNewClient(t *testing.T) {
 	type args struct {
-		clientID string
+		clientID     string
+		clientSecret string
 	}
 	tests := []struct {
 		name    string
@@ -52,7 +54,7 @@ func TestNewClient(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewClient(tt.args.clientID)
+			got, err := NewClient(tt.args.clientID, tt.args.clientSecret)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewClient() error = %v, wantErr %v", err, tt.wantErr)
 				return

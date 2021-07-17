@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	client, err := todoist.NewClient("<clientID here>")
+	client, err := todoist.NewClient("<clientID here>", "<clientSecret goes here>")
 	accessToken := "<accessToken for specific client here>"
 	if err != nil {
 		fmt.Printf("Got error while creating client: %v\n", err)

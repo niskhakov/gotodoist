@@ -14,11 +14,13 @@ import (
 const (
 	restProjects = "https://api.todoist.com/rest/v1/projects"
 	restTasks    = "https://api.todoist.com/rest/v1/tasks"
+	restAuth     = "https://todoist.com/oauth/authorize"
 )
 
 type Client struct {
-	client   *http.Client
-	clientID string
+	client       *http.Client
+	clientID     string
+	clientSecret string
 }
 
 type Project struct {
@@ -59,8 +61,12 @@ type DueObject struct {
 	Timezone  string `json:"timezone"`
 }
 
-func NewClient(clientID string) (*Client, error) {
+func NewClient(clientID string, clientSecret string) (*Client, error) {
 	if clientID == "" {
+		return nil, errors.New("consumer key is empty")
+	}
+
+	if clientSecret == "" {
 		return nil, errors.New("consumer key is empty")
 	}
 
@@ -68,7 +74,8 @@ func NewClient(clientID string) (*Client, error) {
 		client: &http.Client{
 			Timeout: 5 * time.Second,
 		},
-		clientID: clientID,
+		clientID:     clientID,
+		clientSecret: clientSecret,
 	}, nil
 }
 
@@ -99,6 +106,10 @@ func (c *Client) doHTTP(ctx context.Context, accessToken string, method string, 
 	}
 
 	return respB, nil
+}
+
+func (c *Client) GetAuthorizationRequestURL(ctx context.Context) string {
+	return fmt.Sprintf("%s?client_id=%s&scope=%s&state=%s", restAuth, c.clientID, "data:read", "state")
 }
 
 func (c *Client) GetProjects(ctx context.Context, accessToken string) ([]Project, error) {
