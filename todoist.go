@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	restProjects = "https://api.todoist.com/rest/v1/projects"
-	restTasks    = "https://api.todoist.com/rest/v1/tasks"
-	restAuth     = "https://todoist.com/oauth/authorize"
+	restProjects    = "https://api.todoist.com/rest/v1/projects"
+	restTasks       = "https://api.todoist.com/rest/v1/tasks"
+	restAuth        = "https://todoist.com/oauth/authorize"
+	restAccessToken = "https://todoist.com/oauth/access_token"
 )
 
 type Client struct {
@@ -79,14 +80,16 @@ func NewClient(clientID string, clientSecret string) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) doHTTP(ctx context.Context, accessToken string, method string, endpoint string, body io.Reader) ([]byte, error) {
+func (c *Client) doHTTP(ctx context.Context, authBearer string, method string, endpoint string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, body)
 	if err != nil {
 		return nil, fmt.Errorf("DoHTTP invalid: %w", err)
 	}
 
-	bearer := "Bearer " + accessToken
-	req.Header.Add("Authorization", bearer)
+	if authBearer != "" {
+		bearer := "Bearer " + authBearer
+		req.Header.Add("Authorization", bearer)
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -108,8 +111,36 @@ func (c *Client) doHTTP(ctx context.Context, accessToken string, method string, 
 	return respB, nil
 }
 
-func (c *Client) GetAuthorizationRequestURL(ctx context.Context) string {
-	return fmt.Sprintf("%s?client_id=%s&scope=%s&state=%s", restAuth, c.clientID, "data:read", "state")
+func (c *Client) GetAuthorizationRequestURL(ctx context.Context, state string) string {
+	return fmt.Sprintf("%s?client_id=%s&scope=%s&state=%s", restAuth, c.clientID, "data:read", state)
+}
+
+func (c *Client) GetAccessToken(ctx context.Context, code string) (string, error) {
+	endpoint := fmt.Sprintf("%s?client_id=%s&client_secret=%s&code=%s", restAccessToken, c.clientID, c.clientSecret, code)
+	body, err := c.doHTTP(ctx, "", http.MethodPost, endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+
+	var response struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+	}
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return "", fmt.Errorf("unable to decode json response %w", err)
+	}
+
+	if response.TokenType != "Bearer" {
+		return "", fmt.Errorf("token type is invalid, want 'Bearer', got %s", response.TokenType)
+	}
+
+	if response.AccessToken == "" {
+		return "", fmt.Errorf("got empty access token")
+	}
+
+	return response.AccessToken, nil
 }
 
 func (c *Client) GetProjects(ctx context.Context, accessToken string) ([]Project, error) {
